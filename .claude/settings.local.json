@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "WebSearch",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\dbtmd\\\\OneDrive\\\\Desktop\\\\gitRepository\\\\axios_check\" -Force -Recurse | Where-Object {$_.FullName -notmatch '\\\\.git'} | Select-Object FullName)",
+      "WebFetch(domain:www.aikido.dev)"
+    ]
+  }
+}
