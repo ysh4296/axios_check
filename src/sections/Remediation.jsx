@@ -5,8 +5,10 @@ export default function Remediation({ num }) {
     <SectionWrapper id="remediation" num={num} title="해결 방법">
 
       <div className="card">
-        <div className="remedy-num">1</div>
-        <h3 className="sub-title">패키지 업그레이드 (권장)</h3>
+        <div className="remedy-header">
+          <div className="remedy-num">1</div>
+          <h3 className="sub-title">패키지 업그레이드 (권장)</h3>
+        </div>
         <div className="code-block safe-code">
           <div className="code-label safe-label">즉시 실행</div>
           <pre>{`npm install axios@^1.15.0
@@ -25,8 +27,10 @@ pnpm update axios@^1.15.0`}
       </div>
 
       <div className="card">
-        <div className="remedy-num">2</div>
-        <h3 className="sub-title">임시 방어 — 인터셉터 입력 검증</h3>
+        <div className="remedy-header">
+          <div className="remedy-num">2</div>
+          <h3 className="sub-title">임시 방어 — 인터셉터 입력 검증</h3>
+        </div>
         <p>즉시 업그레이드가 어려운 경우, 인터셉터에서 외부 값을 헤더로 설정하기 전에 검증합니다.</p>
         <div className="code-block">
           <div className="code-label">인터셉터 CRLF 방어 패턴</div>
@@ -48,8 +52,10 @@ apiClient.interceptors.request.use((config) => {
       </div>
 
       <div className="card">
-        <div className="remedy-num">3</div>
-        <h3 className="sub-title">TanStack Query 에러 경계 처리</h3>
+        <div className="remedy-header">
+          <div className="remedy-num">3</div>
+          <h3 className="sub-title">TanStack Query 에러 경계 처리</h3>
+        </div>
         <p>패치 후 CRLF가 감지되면 <span className="mono">queryFn</span>이 reject됩니다.
           적절한 에러 처리로 사용자 경험을 보호합니다.</p>
         <div className="code-block">

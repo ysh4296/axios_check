@@ -1,62 +1,79 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { axiosVuln, axiosFix, VULN_VERSION, FIX_VERSION } from '../../lib/axiosInstances.js';
 
 const CRLF_PAYLOAD = 'valid-session\r\nX-Admin: true\r\nX-AWS-Token: stolen';
 const HEADER_KEY   = 'X-Session-Id';
+
+// 캡처된 헤더 객체에 CRLF가 포함된 값이 하나라도 있는지 확인
+function detectCRLF(headers) {
+  return Object.values(headers ?? {}).some(v => /[\r\n]/.test(String(v ?? '')));
+}
 
 function buildOutput({ status, isFetching, data, error }) {
   if (!isFetching && status === 'pending') return '버튼을 눌러 실행하세요.';
   if (isFetching) return '테스트 실행 중...';
 
   if (status === 'success') {
-    const capturedHeaders = data;
+    const capturedHeaders = data ?? {};
+    const hasCRLF = detectCRLF(capturedHeaders);
+
     const lines = [
-      '[ 결과 ] ⚠ 요청 완료 — CRLF가 포함된 채 어댑터에 전달됨!',
+      hasCRLF
+        ? '[ 결과 ] ⚠ CRLF가 adapter에 도착한 헤더에 잔존'
+        : '[ 결과 ] ✓ adapter 도착 시 CRLF 없음',
       '',
       '캡처된 헤더:',
     ];
 
     Object.entries(capturedHeaders).forEach(([k, v]) => {
-      const rawVal  = String(v ?? '');
-      const hasCrlf = /[\r\n]/.test(rawVal);
-      const display = rawVal.replace(/\r\n/g, '\\r\\n').replace(/\r/g, '\\r').replace(/\n/g, '\\n');
-      lines.push(`  ${k}: ${display}${hasCrlf ? '  ← CRLF 포함!' : ''}`);
+      const rawVal   = String(v ?? '');
+      const hasCrlfV = /[\r\n]/.test(rawVal);
+      const display  = rawVal
+        .replace(/\r\n/g, '\\r\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n');
+      lines.push(`  ${k}: ${display}${hasCrlfV ? '  ← CRLF 포함!' : ''}`);
     });
 
-    const sessionVal = Object.entries(capturedHeaders)
-      .find(([k]) => k.toLowerCase() === HEADER_KEY.toLowerCase())?.[1] ?? '';
+    const sessionEntry = Object.entries(capturedHeaders)
+      .find(([k]) => k.toLowerCase() === HEADER_KEY.toLowerCase());
+    const sessionVal = sessionEntry?.[1] ?? '';
 
-    if (sessionVal) {
+    if (sessionVal && /[\r\n]/.test(String(sessionVal))) {
+      const parts = String(sessionVal).split(/\r\n|\r|\n/);
       lines.push('');
       lines.push('HTTP 파서가 해석하는 실제 헤더:');
-      const parts = sessionVal.split(/\r\n|\r|\n/);
       lines.push(`  ${HEADER_KEY}: ${parts[0]}`);
       parts.slice(1).filter(p => p.trim()).forEach(p => {
         lines.push(`  ${p}  ← 주입된 헤더!`);
       });
+      lines.push('');
+      lines.push('판정: 취약 — useQuery refetch마다 악성 헤더 반복 전송');
+    } else {
+      lines.push('');
+      lines.push('판정: CRLF가 인터셉터 또는 dispatch 과정에서 제거/차단됨');
     }
 
-    lines.push('');
-    lines.push('위험: useQuery refetch마다 악성 헤더가 반복 전송됨');
     return lines.join('\n');
   }
 
   if (status === 'error') {
     return [
-      '[ 결과 ] ✓ 인터셉터에서 즉시 차단됨!',
+      '[ 결과 ] ✓ 인터셉터에서 즉시 차단됨',
       '',
       `오류: "${error.message}"`,
       '',
-      'config.headers.set()이 AxiosError를 던져 요청이 차단됨.',
-      'TanStack Query: queryFn이 reject되어 error 상태로 전환.',
-      '→ 악성 헤더가 서버에 단 한 번도 전달되지 않음',
+      'config.headers.set()이 AxiosError를 던져 요청 차단.',
+      'TanStack Query: queryFn이 reject → status = "error".',
+      '판정: 안전 — 악성 헤더가 서버에 단 한 번도 전달되지 않음',
     ].join('\n');
   }
 
   return '';
 }
 
-function InterceptorPanel({ side }) {
+function InterceptorPanel({ side, runTrigger }) {
   const isVuln    = side === 'vuln';
   const axiosInst = isVuln ? axiosVuln : axiosFix;
   const version   = isVuln ? VULN_VERSION : FIX_VERSION;
@@ -69,7 +86,6 @@ function InterceptorPanel({ side }) {
     queryFn: async () => {
       const capturedHeaders = {};
 
-      // 모의 어댑터 — queryFn 내부 apiClient.get()과 동일한 역할
       const instance = axiosInst.create({
         adapter: (config) => {
           const h = typeof config.headers?.toJSON === 'function'
@@ -84,9 +100,9 @@ function InterceptorPanel({ side }) {
         },
       });
 
-      // 인터셉터: 취약한 React 패턴 — 외부 값을 headers.set()으로 전달
-      // 1.14.0: set() 성공 → 요청 진행
-      // 1.15.0: set() AxiosError throw → Promise reject
+      // 취약 패턴: 인터셉터에서 외부 값을 headers.set()으로 전달
+      // 1.14.0 → set() 성공, CRLF가 adapter까지 도달
+      // 1.15.0+ → set()에서 AxiosError throw, Promise reject
       instance.interceptors.request.use((config) => {
         config.headers.set(HEADER_KEY, CRLF_PAYLOAD);
         return config;
@@ -100,13 +116,25 @@ function InterceptorPanel({ side }) {
     },
   });
 
-  const resultClass = status === 'success' ? 'result-vulnerable'
-                    : status === 'error'   ? 'result-safe' : '';
-  const statusText  = isFetching           ? '테스트 중...'
-                    : status === 'success' ? '⚠ 취약 확인됨'
-                    : status === 'error'   ? '✓ 안전 (패치됨)' : '대기 중';
-  const statusClass = status === 'success' ? 'vulnerable'
-                    : status === 'error'   ? 'safe-result' : '';
+  useEffect(() => {
+    if (runTrigger > 0) refetch();
+  }, [runTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // adapter 도달 + CRLF 잔존 여부로 취약/안전 판정
+  const hasCRLFInCapture = status === 'success' && detectCRLF(data);
+  const isUnsafe = hasCRLFInCapture;
+  const isSafe   = status === 'error' || (status === 'success' && !hasCRLFInCapture);
+
+  const resultClass = isUnsafe ? 'result-vulnerable'
+                    : isSafe   ? 'result-safe'
+                    : '';
+  const statusText  = isFetching ? '테스트 중...'
+                    : isUnsafe  ? '⚠ CRLF 잔존 (취약)'
+                    : isSafe    ? '✓ CRLF 차단/제거'
+                    : '대기 중';
+  const statusClass = isUnsafe ? 'vulnerable'
+                    : isSafe   ? 'safe-result'
+                    : '';
 
   return (
     <div className={`demo-panel ${isVuln ? 'panel-vuln' : 'panel-safe'}`}>
@@ -137,30 +165,26 @@ function InterceptorPanel({ side }) {
 }
 
 export default function InterceptorTest() {
-  const qc = useQueryClient();
-
-  const runBoth = () => {
-    qc.refetchQueries({ queryKey: ['interceptor-test', 'vuln'] });
-    qc.refetchQueries({ queryKey: ['interceptor-test', 'safe'] });
-  };
+  const [runTrigger, setRunTrigger] = useState(0);
 
   return (
     <>
       <div className="demo-context">
-        <strong>시뮬레이션: </strong>
+        <strong>체크 포인트: </strong>
         <span className="mono">interceptors.request</span>에서{' '}
-        <span className="mono">config.headers.set()</span>으로 CRLF 페이로드 설정.
-        1.14.0은 인터셉터 통과 후 어댑터까지 도달, 1.15.0은 인터셉터에서 즉시 차단.
-        TanStack Query의 <span className="mono">status</span>가 실시간으로 반영됩니다.
+        <span className="mono">config.headers.set()</span>으로 CRLF 설정 후,
+        custom adapter에 도착한 최종 헤더에 CRLF가 잔존하는지 검사.
+        판정 기준은 <span className="mono">status</span>가 아니라 캡처된 헤더의{' '}
+        <span className="mono">hasCRLF</span>입니다.
       </div>
       <div className="demo-grid">
-        <InterceptorPanel side="vuln" />
+        <InterceptorPanel side="vuln" runTrigger={runTrigger} />
         <div className="demo-divider">
           <div className="vs-circle">VS</div>
         </div>
-        <InterceptorPanel side="safe" />
+        <InterceptorPanel side="safe" runTrigger={runTrigger} />
       </div>
-      <button className="run-both-btn" onClick={runBoth}>
+      <button className="run-both-btn" onClick={() => setRunTrigger(t => t + 1)}>
         양쪽 동시 실행
       </button>
     </>

@@ -333,14 +333,17 @@ p + p  { margin-top: 0.75rem; }
 .critical-badge { background: rgba(255,68,68,0.25);       color: #ff4444; border: 1px solid var(--accent-red); }
 
 /* ── Remedy number badge ── */
+.remedy-header {
+  display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;
+}
 .remedy-num {
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--accent-blue); color: #000;
   font-size: 14px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
-  float: left; margin-right: 0.75rem; margin-top: 2px; flex-shrink: 0;
+  flex-shrink: 0; margin-top: 2px;
 }
-.card { overflow: hidden; }
+.remedy-header .sub-title { margin-bottom: 0; }
 
 /* ── Timeline (component style) ── */
 .timeline-item {
