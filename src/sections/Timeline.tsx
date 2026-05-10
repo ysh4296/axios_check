@@ -1,7 +1,18 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Timeline({ num }) {
-  const events = [
+interface Props {
+  num: number;
+}
+
+interface TimelineEvent {
+  date: string;
+  label: string;
+  desc: string;
+  type: 'vuln' | 'safe' | 'neutral';
+}
+
+export default function Timeline({ num }: Props) {
+  const events: TimelineEvent[] = [
     {
       date: '2026-02-18',
       label: '취약점 발견',

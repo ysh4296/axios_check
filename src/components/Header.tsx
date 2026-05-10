@@ -1,4 +1,4 @@
-import { VULN_VERSION, FIX_VERSION } from '../lib/axiosInstances.js';
+import { VULN_VERSION, FIX_VERSION } from '../lib/axiosInstances';
 
 export default function Header() {
   return (

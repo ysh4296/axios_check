@@ -1,6 +1,10 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Checklist({ num }) {
+interface Props {
+  num: number;
+}
+
+export default function Checklist({ num }: Props) {
   return (
     <SectionWrapper id="checklist" num={num} title="React 프로젝트 점검 체크리스트">
       <div className="card">

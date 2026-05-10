@@ -1,12 +1,12 @@
-import Header from './components/Header.jsx';
-import DemoSection from './components/demo/DemoSection.jsx';
-import Overview from './sections/Overview.jsx';
-import Analysis from './sections/Analysis.jsx';
-import Scenarios from './sections/Scenarios.jsx';
-import Checklist from './sections/Checklist.jsx';
-import Remediation from './sections/Remediation.jsx';
-import Timeline from './sections/Timeline.jsx';
-import References from './sections/References.jsx';
+import Header from './components/Header';
+import DemoSection from './components/demo/DemoSection';
+import Overview from './sections/Overview';
+import Analysis from './sections/Analysis';
+import Scenarios from './sections/Scenarios';
+import Checklist from './sections/Checklist';
+import Remediation from './sections/Remediation';
+import Timeline from './sections/Timeline';
+import References from './sections/References';
 
 export default function App() {
   return (

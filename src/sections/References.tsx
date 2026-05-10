@@ -1,7 +1,17 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function References({ num }) {
-  const refs = [
+interface Props {
+  num: number;
+}
+
+interface Reference {
+  title: string;
+  url: string;
+  desc: string;
+}
+
+export default function References({ num }: Props) {
+  const refs: Reference[] = [
     {
       title: 'GitHub Advisory GHSA-fvcv-3m26-pcqx',
       url: 'https://github.com/advisories/GHSA-fvcv-3m26-pcqx',

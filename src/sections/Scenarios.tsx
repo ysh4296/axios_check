@@ -1,6 +1,10 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Scenarios({ num }) {
+interface Props {
+  num: number;
+}
+
+export default function Scenarios({ num }: Props) {
   return (
     <SectionWrapper id="scenarios" num={num} title="공격 시나리오 — React + TanStack Query 환경">
 

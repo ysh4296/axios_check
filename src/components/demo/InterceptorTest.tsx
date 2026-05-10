@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { axiosVuln, axiosFix, VULN_VERSION, FIX_VERSION } from '../../lib/axiosInstances.js';
+import { axiosVuln, axiosFix, VULN_VERSION, FIX_VERSION } from '../../lib/axiosInstances';
 
 const CRLF_PAYLOAD = 'valid-session\r\nX-Admin: true\r\nX-AWS-Token: stolen';
 const HEADER_KEY   = 'X-Session-Id';
 
-// 캡처된 헤더 객체에 CRLF가 포함된 값이 하나라도 있는지 확인
-function detectCRLF(headers) {
+type CapturedHeaders = Record<string, string>;
+
+function detectCRLF(headers: CapturedHeaders): boolean {
   return Object.values(headers ?? {}).some(v => /[\r\n]/.test(String(v ?? '')));
 }
 
-function buildOutput({ status, isFetching, data, error }) {
+interface BuildOutputArgs {
+  status: 'pending' | 'error' | 'success';
+  isFetching: boolean;
+  data: CapturedHeaders | undefined;
+  error: Error | null;
+}
+
+function buildOutput({ status, isFetching, data, error }: BuildOutputArgs): string {
   if (!isFetching && status === 'pending') return '버튼을 눌러 실행하세요.';
   if (isFetching) return '테스트 실행 중...';
 
@@ -62,7 +70,7 @@ function buildOutput({ status, isFetching, data, error }) {
     return [
       '[ 결과 ] ✓ 인터셉터에서 즉시 차단됨',
       '',
-      `오류: "${error.message}"`,
+      `오류: "${error?.message ?? ''}"`,
       '',
       'config.headers.set()이 AxiosError를 던져 요청 차단.',
       'TanStack Query: queryFn이 reject → status = "error".',
@@ -73,21 +81,27 @@ function buildOutput({ status, isFetching, data, error }) {
   return '';
 }
 
-function InterceptorPanel({ side, runTrigger }) {
+interface PanelProps {
+  side: 'vuln' | 'safe';
+  runTrigger: number;
+}
+
+function InterceptorPanel({ side, runTrigger }: PanelProps) {
   const isVuln    = side === 'vuln';
   const axiosInst = isVuln ? axiosVuln : axiosFix;
   const version   = isVuln ? VULN_VERSION : FIX_VERSION;
 
-  const { data, error, status, isFetching, refetch } = useQuery({
+  const { data, error, status, isFetching, refetch } = useQuery<CapturedHeaders, Error>({
     queryKey: ['interceptor-test', side],
     enabled: false,
     retry: false,
     staleTime: Infinity,
     queryFn: async () => {
-      const capturedHeaders = {};
+      const capturedHeaders: CapturedHeaders = {};
 
       const instance = axiosInst.create({
-        adapter: (config) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        adapter: (config: any): any => {
           const h = typeof config.headers?.toJSON === 'function'
             ? (config.headers.toJSON(true) ?? {})
             : {};
@@ -103,7 +117,8 @@ function InterceptorPanel({ side, runTrigger }) {
       // 취약 패턴: 인터셉터에서 외부 값을 headers.set()으로 전달
       // 1.14.0 → set() 성공, CRLF가 adapter까지 도달
       // 1.15.0+ → set()에서 AxiosError throw, Promise reject
-      instance.interceptors.request.use((config) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      instance.interceptors.request.use((config: any) => {
         config.headers.set(HEADER_KEY, CRLF_PAYLOAD);
         return config;
       });
@@ -112,7 +127,7 @@ function InterceptorPanel({ side, runTrigger }) {
         headers: { Authorization: 'Bearer user-token' },
       });
 
-      return response.data; // capturedHeaders
+      return response.data as CapturedHeaders;
     },
   });
 
@@ -121,7 +136,7 @@ function InterceptorPanel({ side, runTrigger }) {
   }, [runTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // adapter 도달 + CRLF 잔존 여부로 취약/안전 판정
-  const hasCRLFInCapture = status === 'success' && detectCRLF(data);
+  const hasCRLFInCapture = status === 'success' && detectCRLF(data ?? {});
   const isUnsafe = hasCRLFInCapture;
   const isSafe   = status === 'error' || (status === 'success' && !hasCRLFInCapture);
 

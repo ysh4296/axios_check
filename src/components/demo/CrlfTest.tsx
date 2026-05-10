@@ -1,11 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { axiosVuln, axiosFix, VULN_VERSION, FIX_VERSION } from '../../lib/axiosInstances.js';
+import { axiosVuln, axiosFix, VULN_VERSION, FIX_VERSION } from '../../lib/axiosInstances';
 
 const CRLF_PAYLOAD = 'legit-trace-id\r\nX-Injected: hacked-by-crlf';
 const HEADER_KEY   = 'X-Trace-Id';
 
-function buildOutput({ status, isFetching, data, error }) {
+interface CrlfResult {
+  stored: unknown;
+  hasCRLF: boolean;
+  allHeaders: Record<string, unknown>;
+}
+
+interface BuildOutputArgs {
+  status: 'pending' | 'error' | 'success';
+  isFetching: boolean;
+  data: CrlfResult | undefined;
+  error: Error | null;
+}
+
+function buildOutput({ status, isFetching, data, error }: BuildOutputArgs): string {
   if (!isFetching && status === 'pending') return '버튼을 눌러 실행하세요.';
   if (isFetching) return '테스트 실행 중...';
 
@@ -41,7 +54,7 @@ function buildOutput({ status, isFetching, data, error }) {
     return [
       '[ 결과 ] ✓ 예외 발생 — 요청 차단',
       '',
-      `오류 메시지: "${error.message}"`,
+      `오류 메시지: "${error?.message ?? ''}"`,
       '',
       '판정: 요청 생성/전송 전 단계에서 AxiosError로 차단됨',
     ].join('\n');
@@ -50,12 +63,17 @@ function buildOutput({ status, isFetching, data, error }) {
   return '';
 }
 
-function CrlfPanel({ side, runTrigger }) {
+interface PanelProps {
+  side: 'vuln' | 'safe';
+  runTrigger: number;
+}
+
+function CrlfPanel({ side, runTrigger }: PanelProps) {
   const isVuln    = side === 'vuln';
   const axiosInst = isVuln ? axiosVuln : axiosFix;
   const version   = isVuln ? VULN_VERSION : FIX_VERSION;
 
-  const { data, error, status, isFetching, refetch } = useQuery({
+  const { data, error, status, isFetching, refetch } = useQuery<CrlfResult, Error>({
     queryKey: ['crlf-test', side],
     enabled: false,
     retry: false,
@@ -67,7 +85,8 @@ function CrlfPanel({ side, runTrigger }) {
         url: '/crlf-demo',
         method: 'GET',
         headers: { [HEADER_KEY]: CRLF_PAYLOAD },
-        adapter: async (config) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        adapter: async (config: any): Promise<any> => {
           const headers = config.headers;
           const stored  =
             typeof headers?.get === 'function'
@@ -89,7 +108,7 @@ function CrlfPanel({ side, runTrigger }) {
         },
       });
 
-      return res.data;
+      return res.data as CrlfResult;
     },
   });
 

@@ -1,6 +1,10 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Analysis({ num }) {
+interface Props {
+  num: number;
+}
+
+export default function Analysis({ num }: Props) {
   return (
     <SectionWrapper id="analysis" num={num} title="취약점 분석 — 코드 레벨 원인">
       <div className="card">

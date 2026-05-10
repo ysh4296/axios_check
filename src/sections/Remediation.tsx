@@ -1,6 +1,10 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Remediation({ num }) {
+interface Props {
+  num: number;
+}
+
+export default function Remediation({ num }: Props) {
   return (
     <SectionWrapper id="remediation" num={num} title="해결 방법">
 

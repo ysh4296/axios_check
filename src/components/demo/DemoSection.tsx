@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import SectionWrapper from '../SectionWrapper.jsx';
-import CrlfTest from './CrlfTest.jsx';
-import InterceptorTest from './InterceptorTest.jsx';
+import SectionWrapper from '../SectionWrapper';
+import CrlfTest from './CrlfTest';
+import InterceptorTest from './InterceptorTest';
 
-export default function DemoSection({ num }) {
-  const [activeTab, setActiveTab] = useState('crlf');
+interface Props {
+  num: number;
+}
+
+export default function DemoSection({ num }: Props) {
+  const [activeTab, setActiveTab] = useState<'crlf' | 'interceptor'>('crlf');
 
   return (
     <SectionWrapper id="demo" num={num} title="라이브 데모 — axios 1.14.0 vs 1.15.0">

@@ -1,6 +1,10 @@
-import SectionWrapper from '../components/SectionWrapper.jsx';
+import SectionWrapper from '../components/SectionWrapper';
 
-export default function Overview({ num }) {
+interface Props {
+  num: number;
+}
+
+export default function Overview({ num }: Props) {
   return (
     <SectionWrapper id="overview" num={num} title="개요 — React 스택에서 왜 중요한가">
       <div className="card">
